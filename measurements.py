@@ -14,7 +14,7 @@ import equipment.sas as sas
 import equipment.power_meter as pm
 from data_aq_lib.measurement import serial_commands as sc
 
-class measurement:
+class Measurement:
     """
            __INIT__     
            __STR__      
@@ -58,7 +58,7 @@ class measurement:
                 
         elif type(self.par['Load_pts']) is not str:
             for i in self.par['Load_pts']:
-                sc.command_power_SerialCom(self.pcu, float(i), self.par, self.eq, adj='On')                                  
+                sc.command_p(float(i), self.par, self.eq, adj='On')
                 
                 item=pm.pm_measure(self.eq)
                 item.update({'load_set':int(100*float(i))})  # add load information on para in dict format 
