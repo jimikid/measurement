@@ -2,6 +2,10 @@
 Created on 02/24/2016, @author: sbaek
   V00
   - initial release
+
+  V01 03/02/2016
+  - p command has 2 bytes,(8bits) for hormet
+
 """
 import sys, time
 from os.path import abspath, dirname
@@ -13,7 +17,7 @@ from data_aq_lib.equipment import serialcom
 import data_aq_lib.equipment.power_meter as pm
 
 
-def command_p(load, para, equip, adj='On'): # asj is added in case simply need to put command
+def command_p(load, para, equip, adj='On', dec_step=70, tolerence=0.005): # asj is added in case simply need to put command
     '''
     requires 'command_table.csv' in folder 'source_file'
     the table has,at most, 187 values   
@@ -25,9 +29,7 @@ def command_p(load, para, equip, adj='On'): # asj is added in case simply need t
     p_rated= para['p_rated']
     command=pd.read_csv(para['source_path']+'\command_table.csv')  #extract command to determine power transfer
 
-#    ''' set pt 2 mode. boot up with pt 40'''
-
-    i=15  # command '0' is troublesome in case of out of tune - power flow in opposite direction can occur
+    i=10  # command '0' is troublesome in case of out of tune - power flow in opposite direction can occur
     while((command['p_ac_out'][i] < int(p_rated*load)) and (i<len(command)-1)):
           i+=1
             
@@ -43,9 +45,10 @@ def command_p(load, para, equip, adj='On'): # asj is added in case simply need t
         item=pm.pm_measure(equip)
         
         i=1
-        while((item['p_ac_out']< (p_rated*load*0.996)) and (i<12) and (load_dec<command['dec'][len(command)-1])):  #temp['p_ac_out'][0] is not a single value (number of sample)
+        iteration=15
+        while((item['p_ac_out']< (p_rated*load*(1-tolerence/2))) and (i<iteration) and (load_dec<command['dec'][len(command)-1])):  #temp['p_ac_out'][0] is not a single value (number of sample)
             time.sleep(0.5)
-            load_dec=load_dec+i*1
+            load_dec=load_dec+i*dec_step
             p_hex=hex(load_dec).split('x')[1]
             ser.write(cmd='p %s\r' %p_hex)
             time.sleep(1) #pcu reponse is slower than time.sleep(1.0)!!!!
@@ -53,9 +56,9 @@ def command_p(load, para, equip, adj='On'): # asj is added in case simply need t
             i+=1
         
         i=1
-        while((item['p_ac_out']> (p_rated*load*1.012)) and (i<12)):  #temp['p_ac_out'] is not a single value (number of sample)
+        while((item['p_ac_out']> (p_rated*load*(1+tolerence/2))) and (i<iteration)):  #temp['p_ac_out'] is not a single value (number of sample)
             time.sleep(0.5)
-            load_dec=load_dec-i*1
+            load_dec=load_dec-i*dec_step
             p_hex=hex(load_dec).split('x')[1]
             ser.write(cmd='p %s\r' %p_hex)
             time.sleep(1)
