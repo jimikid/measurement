@@ -2,6 +2,10 @@
 Created on 02/24/2016, @author: sbaek
   V00
   - initial release
+
+  V01 03/02/2016
+  - p command has 2 bytes,(8bits) for hormet
+
 """
 
 import sys, time
@@ -28,7 +32,6 @@ class table_gen:
         self.par=para
         self.eq=equip
         self.ser=serialcom.SerialCom()
-        #self.pcu=equip['SERIAL']
 
     def __str__(self):
         self.return_str= '\n\n class table_gen \n' 
@@ -36,7 +39,8 @@ class table_gen:
         self.return_str += '\n source_path : %s  ' %self.par['source_path']
         #return_str += '\n save : %s  ' %self.new_file
         return self.return_str    
-    
+
+    ''' #for Frigate
     def generate(self, SAS_volt=32, show ='On', max_power=280):    
         # return flag 'down' in case of failure of boot-up
         global data
@@ -72,4 +76,43 @@ class table_gen:
         name=self.par['source_path']+'/%s.csv' %'command_table'
         print '\n save at %s' %name
         df.to_csv(self.par['source_path']+'/%s.csv' %'command_table') 
+        print  '\n %s' %time.strftime("%a, %d %b %Y %H:%M:%S")
+    '''
+
+    def generate(self, SAS_volt=32, show ='On', max_power=280, dec_step=70):
+        # return flag 'down' in case of failure of boot-up
+        global data
+        #power_limit= 300.0
+        d, h, pi,po=[], [], [], []
+        """ in case of out of tune, power can flow in opposite direction!! carefull"""
+
+
+        start, end =1000,  22000  # 1000 -> 03e8 (~20W), 22000 -> 55f0 (~300W)
+        hexa=hex(start).split('x')[1]
+        self.ser.write(cmd='p %s\r' %hexa)
+        time.sleep(2)  # need time to settle down
+
+        index=0
+        for i in range(start, end, dec_step):
+            time.sleep(0.4)  # power is not measured in real time when avg function is on at wt500
+            dec=i
+            hexa=hex(dec).split('x')[1]
+            self.ser.write(cmd='p %s\r' %hexa, delay=0.1)
+            #self.pcu.debugger_cmd('p %02X\r' %dec)
+            item=pm.pm_measure(self.eq)
+            d.append({'dec':dec,'hexa':hexa,'p_in':item['p_in'],'p_ac_out':item['p_ac_out']})
+            df=pd.DataFrame(d)    #df should not be declared as global in main script.. kept updated..
+            if show =='On': print '\n pin : %.2f W, pout: %.2f W,  Vdc:%.2f V' %(item['p_in'], item['p_ac_out'], item['volt_in'])
+
+            if (int(item['p_ac_out'])>max_power):
+                break
+
+            if len(d)>8 and (d[index]['p_ac_out']-d[index-7]['p_ac_out']) < 2.0:
+                print ' settle..'
+                break
+            index=index+1
+
+        name=self.par['source_path']+'/%s.csv' %'command_table'
+        print '\n save at %s' %name
+        df.to_csv(self.par['source_path']+'/%s.csv' %'command_table')
         print  '\n %s' %time.strftime("%a, %d %b %Y %H:%M:%S")
