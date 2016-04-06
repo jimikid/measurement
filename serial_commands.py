@@ -17,7 +17,7 @@ from data_aq_lib.equipment import serialcom
 import data_aq_lib.equipment.power_meter as pm
 
 
-def command_p(load, para, equip, adj='On', dec_step=70, tolerence=0.005): # asj is added in case simply need to put command
+def command_p(load, para, equip, adj='On', dec_step=50, tolerence=0.005): # asj is added in case simply need to put command
     '''
     requires 'command_table.csv' in folder 'source_file'
     the table has,at most, 187 values   
@@ -38,6 +38,8 @@ def command_p(load, para, equip, adj='On', dec_step=70, tolerence=0.005): # asj 
     #print '\n command p %s\r' %p_hex
     #print '\n command p %02X\r' %p_dec
 
+    ser.write(cmd='pt 2\r')
+    time.sleep(2)
     ser.write(cmd='p %s\r' %p_hex)
 
     if (adj=='On'):            
