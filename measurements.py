@@ -51,7 +51,7 @@ class Measurement:
         return self.return_str
 
 
-    def do_measure_pm(self, delay=1, adj=True, check_fault=True, Plim=305, show=False, boot_up=1.0):
+    def do_measure_pm(self, delay=1, adj=True, check_fault=True, Plim=310, show=False, boot_up=1.0):
         #ac.set_ac_source(self.eq, mode=self.par['ac_mode'], freq=60.0)
         #sas.sas_pcu_boot(self.eq, self.par, CURR=14, VOLT=self.par['SAS_volt'], boot_up=boot_up)
 
@@ -64,25 +64,23 @@ class Measurement:
             data.append(item)
 
         elif type(self.par['Load_pts']) is not str:
-            for i in self.par['Load_pts']:
-                sc.command_p(float(i), self.par, self.eq, adj=adj, delay=1.5, show=False) #taking data from pm takes time.
+            for pts in self.par['Load_pts']:
+                Po, Io =sc.command_p(float(pts), self.par, self.eq, adj=adj, delay=1, show=False) #taking data from pm takes time.
                 
                 ''' fault check '''
                 # if power output is abnormally low, it is considered as a fault and shutdown
                 if check_fault:
-                    for j in range(1, 4):
+                    for j in range(1, 3):
                         print '.'
-                        flag=self.check_fault()
-                        if flag: break
-                        else:pass
+                        item, flag=self.check_fault(pts,delay=1)
+                        if flag:break
+                        else: pass
                         time.sleep(j*0.25) # check 4 time
                 else:
                     pass
-                    
-                #sc.command_p(float(i), self.par, self.eq, adj=adj, delay=0)
-                item=pm.pm_measure(self.eq)
+
                 load= 100*float(item['p_ac_out'])/float(self.par['p_rated'])
-                item.update({'Vdc':self.par['SAS_volt'], 'load_set':int(100*float(i)),'load':load, 'fault':flag})
+                item.update({'Vdc':self.par['SAS_volt'], 'load_set':int(100*float(pts)),'load':load, 'fault':flag})
 
                 try:
                     temp=dvm.measure_tempc(self.eq)
@@ -99,25 +97,28 @@ class Measurement:
                         self.par['log'] +=msg
                     except:pass
 
-                if (flag) or (float(item['p_ac_out'])>Plim): # limit output at 305W (default)
+                if (flag) or (float(item['p_ac_out'])>Plim): # limit output at 310W (default)
                     break
                     
         self.results=data
         return data
 
-    def check_fault(self):
+    def check_fault(self, pts, delay=0):
         # go to the next voltage if power is smaller than the smallest power requested
         item=pm.pm_measure(self.eq) # to detect fault quickly, get measurement first
         #if float(item['p_ac_out'])< (min(self.par['Load_pts']))*self.par['p_rated']:# does not work, pcu often cannot carry as requested
         #print float(item['p_ac_out']), (0.5*min(self.par['Load_pts']))*self.par['p_rated']
-        if float(item['p_ac_out'])< (0.9*min(self.par['Load_pts']))*self.par['p_rated']:
+        if float(item['p_ac_out'])< (0.9*pts*self.par['p_rated']):
             self.shutdown()
             msg=' fault..'
             print msg
             self.par['log'] +=msg
+            item['eff']= None  #in case of fault, eff does not mean something. flush
             flag=True
         else: flag=False
-        return flag
+        time.sleep(delay)
+
+        return item, flag
 
 
     def do_measure_tempc(self,time_step=1, duration=1, SAT='off',POWER_METER='On'):
@@ -195,6 +196,6 @@ class Measurement:
         msg +=' %s\n' %time.strftime("%I:%M:%S")
         print msg
         self.par['log'] +=msg
-        time.sleep(5)
+        time.sleep(4)
 
 
