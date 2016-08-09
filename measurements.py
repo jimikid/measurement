@@ -47,13 +47,13 @@ class Measurement:
     def __str__(self):
         self.return_str= '\n\n -- Measurement --'
         self.return_str += '\n data_path : %s  ' %self.par['data_path']
-        self.return_str += '\n source_path : %s  ' %self.par['source_path']
+        #self.return_str += '\n source_path : %s  ' %self.par['source_path']
         return self.return_str
 
 
     def do_measure_pm(self, delay=1, adj=True, check_fault=True, Plim=310, show=False, boot_up=1.0):
-        #ac.set_ac_source(self.eq, mode=self.par['ac_mode'], freq=60.0)
-        #sas.sas_pcu_boot(self.eq, self.par, CURR=14, VOLT=self.par['SAS_volt'], boot_up=boot_up)
+        sc.command_p(0.75, self.par, self.eq, adj=False,show=False)
+        sas.sas_fixed_adj(self.eq, CURR=14, VOLT=self.par['SAS_volt'], delay=2) # adjust Vdc at 75% load
 
         data=[]
         if type(self.par['Load_pts']) is str:
@@ -133,7 +133,7 @@ class Measurement:
 
         ''' boot-up '''
         ac.set_ac_source(self.eq, mode=self.par['ac_mode'], freq=60.0)
-        item=sas.sas_pcu_boot(self.eq, CURR=14, VOLT=self.par['SAS_volt'])      #receive the time of boot-up
+        item=sas.sas_pcu_boot(self.eq, CURR=18, VOLT=self.par['SAS_volt'])      #receive the time of boot-up
         data.append(item)   #inital value when boot-up
 
 
@@ -149,7 +149,7 @@ class Measurement:
                 datestr=time.strftime(" %m/%d/%Y")
                 item.update({'scan_time':timestr, 'scan_date':datestr})
 
-                sas.sas_fixed_adj(self.eq, CURR=14, VOLT=self.par['SAS_volt'])  #adjust Vdc before pm measurement
+                sas.sas_fixed_adj(self.eq, CURR=18, VOLT=self.par['SAS_volt'])  #adjust Vdc before pm measurement
                 sc.command_p(float(1.0), self.par, self.eq, adj='On')           #adjust Po before pm measurement
                 if POWER_METER=='On':
                     item.update(pm.pm_measure(self.eq))                         #item in dict

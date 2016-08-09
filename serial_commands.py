@@ -14,6 +14,9 @@ Created on 02/24/2016, @author: sbaek
   V03 07/06/2016
   - write(cmd, delay)
 
+  V04 08/9/2016
+  - para['ac_mode'] =='LL', 'LL_HVRT', 'LN'
+
 """
 import sys, time
 from os.path import abspath, dirname
@@ -43,41 +46,58 @@ def command_p(load, para, equip, adj=True, dec_step=50, tolerence=1.5, delay=1, 
    
     if para['ac_mode'] =='LL':
         Po=p_rated*load
-        Ipeak=Po/240.0*2**.5  #'LL' mode, 240Vrm
-        Io=Ipeak/2**0.5
+        Io=Po/240.0  #[rms], 'LL' mode, 240Vrms
+        Ipeak=Io*2**0.5
         #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)        
         bit=int(Ipeak/(0.01/128))
         ser.write(cmd='pt 2\r', delay=delay)
-        
-        msg = '\n command :\n'
-        msg += '  Po : %.1f, Io : %.2f Arms, load: %.2f\n' %(Po, Io, load)
 
-        print msg
-        para['log'] +=msg
-        
-        if adj:        
-            diff, bit, eff=com_adj(ser, load, para, equip, bit, step=0, delay=delay)  #command as calculated
-            for i in range(1, 20):  
-                if ( abs(diff) < tolerence ):
-                    break
-                elif ( diff < -tolerence*3.5 ):
-                    diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*3, delay=delay)
-                elif ( diff < -tolerence*2.5 ):
-                    diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*2, delay=delay)
-                elif ( diff < -tolerence*1.5 ):
-                    diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*1, delay=delay)
-                elif ( diff > tolerence*1.5 ):
-                    diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*1, delay=delay)
-                elif ( diff > tolerence*2.5 ):
-                    diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*2, delay=delay)
-                else:pass
-        else:
-            p_hex=hex(bit)
-            p_hex=p_hex.split('x')[1]
-            ser.write(cmd='p %s\r' %p_hex, delay=delay)
+    elif para['ac_mode'] =='LL_HVRT':
+        Po=p_rated*load
+        Io=Po/(240.0*1.1)  #[rms] 'LL_HVRT' mode, 240*1.1=264V
+        Ipeak=Io*2**0.5
+        #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)
+        bit=int(Ipeak/(0.01/128))
+        ser.write(cmd='pt 2\r', delay=delay)
 
-        if show:show(equip)      # taking data from pm takes time.
-        else:pass
+    elif para['ac_mode'] =='LN':
+        Po=p_rated*load
+        Io=Po/208  #[rms], 'LN' mode, 208V
+        Ipeak=Io*2**0.5
+        #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)
+        bit=int(Ipeak/(0.01/128))
+        ser.write(cmd='pt 2\r', delay=delay)
+
+        
+    msg = '\n command :\n'
+    msg += '  Po : %.1f, Io : %.2f Arms, load: %.2f\n' %(Po, Io, load)
+
+    print msg
+    para['log'] +=msg
+
+    if adj:
+        diff, bit, eff=com_adj(ser, load, para, equip, bit, step=0, delay=delay)  #command as calculated
+        for i in range(1, 20):
+            if ( abs(diff) < tolerence ):
+                break
+            elif ( diff < -tolerence*3.5 ):
+                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*3, delay=delay)
+            elif ( diff < -tolerence*2.5 ):
+                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*2, delay=delay)
+            elif ( diff < -tolerence*1.5 ):
+                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*1, delay=delay)
+            elif ( diff > tolerence*1.5 ):
+                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*1, delay=delay)
+            elif ( diff > tolerence*2.5 ):
+                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*2, delay=delay)
+            else:pass
+    else:
+        p_hex=hex(bit)
+        p_hex=p_hex.split('x')[1]
+        ser.write(cmd='p %s\r' %p_hex, delay=delay)
+
+    if show:show(equip)      # taking data from pm takes time.
+    else:pass
     ser.close()
     return Po, Io
 
