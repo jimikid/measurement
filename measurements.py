@@ -51,7 +51,7 @@ class Measurement:
         return self.return_str
 
 
-    def do_measure_pm(self, delay=1, adj=True, check_fault=True, Plim=310, show=False, boot_up=1.0):
+    def do_measure_pm(self, delay=1, adj=True, check_fault=True, Plim=305, show=False, boot_up=1.0):
         sc.command_p(0.75, self.par, self.eq, adj=False,show=False)
         sas.sas_fixed_adj(self.eq, CURR=14, VOLT=self.par['SAS_volt'], delay=2) # adjust Vdc at 75% load
 

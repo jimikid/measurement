@@ -43,31 +43,40 @@ def command_p(load, para, equip, adj=True, dec_step=50, tolerence=1.5, delay=1, 
     '''
     ser=serialcom.SerialCom()
     p_rated= para['p_rated']
+    bits=7
+    #bits=6
    
     if para['ac_mode'] =='LL':
         Po=p_rated*load
         Io=Po/240.0  #[rms], 'LL' mode, 240Vrms
         Ipeak=Io*2**0.5
         #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)        
-        bit=int(Ipeak/(0.01/128))
+        p_dec=int(Ipeak/(0.01/2**bits))
         ser.write(cmd='pt 2\r', delay=delay)
 
-    elif para['ac_mode'] =='LL_HVRT':
+    elif para['ac_mode'] =='LL_p10':
         Po=p_rated*load
         Io=Po/(240.0*1.1)  #[rms] 'LL_HVRT' mode, 240*1.1=264V
         Ipeak=Io*2**0.5
         #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)
-        bit=int(Ipeak/(0.01/128))
+        p_dec=int(Ipeak/(0.01/2**bits))
         ser.write(cmd='pt 2\r', delay=delay)
 
     elif para['ac_mode'] =='LN':
         Po=p_rated*load
-        Io=Po/208  #[rms], 'LN' mode, 208V
+        Io=Po/208.0  #[rms], 'LN' mode, 208V
         Ipeak=Io*2**0.5
         #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)
-        bit=int(Ipeak/(0.01/128))
+        p_dec=int(Ipeak/(0.01/2**bits))
         ser.write(cmd='pt 2\r', delay=delay)
 
+    elif para['ac_mode'] =='LN_n10':
+        Po=p_rated*load
+        Io=Po/(208.0*0.9)  #[rms], 'LN' mode, 208V
+        Ipeak=Io*2**0.5
+        #print '\n Po : %.1f, amp_ac : %.2f Arms at %.1fW, P_rated=%.1fW ' %(Po, Ipeak/2**0.5, Po, p_rated)
+        p_dec=int(Ipeak/(0.01/2**bits))
+        ser.write(cmd='pt 2\r', delay=delay)
         
     msg = '\n command :\n'
     msg += '  Po : %.1f, Io : %.2f Arms, load: %.2f\n' %(Po, Io, load)
@@ -76,23 +85,23 @@ def command_p(load, para, equip, adj=True, dec_step=50, tolerence=1.5, delay=1, 
     para['log'] +=msg
 
     if adj:
-        diff, bit, eff=com_adj(ser, load, para, equip, bit, step=0, delay=delay)  #command as calculated
+        diff, p_dec, eff=com_adj(ser, load, para, equip, p_dec, step=0, delay=delay)  #command as calculated
         for i in range(1, 20):
             if ( abs(diff) < tolerence ):
                 break
             elif ( diff < -tolerence*3.5 ):
-                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*3, delay=delay)
+                diff, p_dec, eff=com_adj(ser,load, para, equip, p_dec, step=dec_step*3, delay=delay)
             elif ( diff < -tolerence*2.5 ):
-                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*2, delay=delay)
+                diff, p_dec, eff=com_adj(ser,load, para, equip, p_dec, step=dec_step*2, delay=delay)
             elif ( diff < -tolerence*1.5 ):
-                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=dec_step*1, delay=delay)
+                diff, p_dec, eff=com_adj(ser,load, para, equip, p_dec, step=dec_step*1, delay=delay)
             elif ( diff > tolerence*1.5 ):
-                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*1, delay=delay)
+                diff, p_dec, eff=com_adj(ser,load, para, equip, p_dec, step=-dec_step*1, delay=delay)
             elif ( diff > tolerence*2.5 ):
-                diff, bit, eff=com_adj(ser,load, para, equip, bit, step=-dec_step*2, delay=delay)
+                diff, p_dec, eff=com_adj(ser,load, para, equip, p_dec, step=-dec_step*2, delay=delay)
             else:pass
     else:
-        p_hex=hex(bit)
+        p_hex=hex(p_dec)
         p_hex=p_hex.split('x')[1]
         ser.write(cmd='p %s\r' %p_hex, delay=delay)
 
